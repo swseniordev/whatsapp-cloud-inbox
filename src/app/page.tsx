@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { ConversationList, type ConversationListRef } from '@/components/conversation-list';
 import { MessageView } from '@/components/message-view';
+import { apiPath } from '@/lib/api-path';
 
 type Conversation = {
   id: string;
@@ -18,7 +19,7 @@ export default function Home() {
     setSelectedConversation(conversation);
 
     try {
-      await fetch('/api/conversations/read', {
+      await fetch(apiPath('/api/conversations/read'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

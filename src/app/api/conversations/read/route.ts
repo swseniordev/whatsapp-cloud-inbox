@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient } from '@/lib/whatsapp-client';
 
 export async function POST(request: Request) {
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const body = await request.json();
     const jid = typeof body.jid === 'string' ? body.jid : undefined;
 
@@ -19,7 +21,7 @@ export async function POST(request: Request) {
     console.error('Error marking conversation as read:', error);
     return NextResponse.json(
       { error: 'Failed to mark conversation as read' },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

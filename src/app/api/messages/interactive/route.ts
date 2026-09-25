@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient, PHONE_NUMBER_ID } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient, PHONE_NUMBER_ID } from '@/lib/whatsapp-client';
 
 export async function POST(request: Request) {
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const body = await request.json();
     const { phoneNumber, header, body: bodyText, buttons } = body;
 
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     console.error('Error sending interactive message:', error);
     return NextResponse.json(
       { error: 'Failed to send interactive message' },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

@@ -25,6 +25,8 @@
 //   }
 // });
 
+import { cookies } from 'next/headers';
+
 export type EvolutionMessage = {
   id?: string;
   direction?: 'inbound' | 'outbound';
@@ -236,18 +238,47 @@ function normalizeMessage(message: EvolutionMessage, conversationId: string): In
   };
 }
 
+// Error carrying the HTTP status the route should answer with (the gateway's
+// own status when it rejected the call, e.g. 401/403).
+export class GatewayError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+export function errorStatus(error: unknown): number {
+  return error instanceof GatewayError ? error.status : 500;
+}
+
+// Per-request data every whatsapp-business-gateway call needs: the Evolution
+// instance (from the admin's ?instance=) and the user's WhatIdea session
+// cookie, which the gateway's JwtGuard reads.
+type GatewayContext = {
+  instance: string;
+  accessToken?: string;
+};
+
 class EvolutionWhatsAppClient {
   private readonly baseUrl: string;
 
-  constructor(baseUrl = process.env.EVOLUTION_API_URL || 'http://localhost:3000/api/v1/evolution-api') {
+  constructor(
+    private readonly context: GatewayContext,
+    baseUrl = process.env.EVOLUTION_API_URL || 'http://localhost:3001/api/v1/evolution-api'
+  ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 
+  private withInstance(path: string): string {
+    return `${path}?instance=${encodeURIComponent(this.context.instance)}`;
+  }
+
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const { accessToken } = this.context;
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(accessToken ? { Cookie: `access_token=${accessToken}` } : {}),
         ...init?.headers
       },
       cache: 'no-store'
@@ -255,7 +286,10 @@ class EvolutionWhatsAppClient {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Evolution API request failed (${response.status}): ${text || response.statusText}`);
+      throw new GatewayError(
+        `Evolution API request failed (${response.status}): ${text || response.statusText}`,
+        response.status
+      );
     }
 
     return response.json() as Promise<T>;
@@ -263,7 +297,9 @@ class EvolutionWhatsAppClient {
 
   conversations = {
     list: async ({ limit }: { limit?: number } = {}): Promise<ListResponse<InboxConversation>> => {
-      const payload = await this.request<EvolutionEnvelope<EvolutionChat[]>>('/conversations');
+      const payload = await this.request<EvolutionEnvelope<EvolutionChat[]>>(
+        this.withInstance('/conversations')
+      );
       const chats = unwrapData(payload) ?? [];
       const data = chats.map(normalizeChat);
 
@@ -273,31 +309,13 @@ class EvolutionWhatsAppClient {
     },
 
     markAsRead: async ({ jid }: { jid: string }) => {
-      const token = process.env.EVOLUTION_API_TOKEN;
-      const response = await fetch(`${this.baseUrl}/conversations/read`, {
+      return this.request('/conversations/read', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ jid }),
-        cache: 'no-store'
+        body: JSON.stringify({
+          jid,
+          instance: this.context.instance
+        })
       });
-
-      if (response.status === 401) {
-        return {
-          ok: false,
-          status: 401,
-          message: 'Evolution API read endpoint requires authentication'
-        };
-      }
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Evolution API request failed (${response.status}): ${text || response.statusText}`);
-      }
-
-      return response.json();
     }
   };
 
@@ -310,7 +328,7 @@ class EvolutionWhatsAppClient {
       limit?: number;
     }): Promise<ListResponse<InboxMessage>> => {
       const payload = await this.request<EvolutionEnvelope<EvolutionMessage[]>>(
-        `/messages/${encodeURIComponent(conversationId)}`
+        this.withInstance(`/messages/${encodeURIComponent(conversationId)}`)
       );
       const messages = unwrapData(payload) ?? [];
       const data = messages.map((message) => normalizeMessage(message, conversationId));
@@ -324,6 +342,7 @@ class EvolutionWhatsAppClient {
       return this.request('/messages', {
         method: 'POST',
         body: JSON.stringify({
+          instance: this.context.instance,
           jid: to,
           text: body
         })
@@ -377,22 +396,19 @@ class EvolutionWhatsAppClient {
   };
 }
 
-type WhatsAppClient = EvolutionWhatsAppClient;
+// One client per incoming request: the instance comes from the ?instance=
+// that apiPath() adds on the browser side, and the session cookie is the one
+// the browser sent to this app (same host as the admin in production).
+export async function getWhatsAppClient(request: Request): Promise<EvolutionWhatsAppClient> {
+  const instance = new URL(request.url).searchParams.get('instance');
 
-let _whatsappClient: WhatsAppClient | null = null;
-
-export function getWhatsAppClient(): WhatsAppClient {
-  if (!_whatsappClient) {
-    _whatsappClient = new EvolutionWhatsAppClient();
+  if (!instance) {
+    throw new GatewayError('Missing required query parameter: instance', 400);
   }
 
-  return _whatsappClient;
+  const accessToken = (await cookies()).get('access_token')?.value;
+
+  return new EvolutionWhatsAppClient({ instance, accessToken });
 }
-
-export const whatsappClient = new Proxy({} as WhatsAppClient, {
-  get(_, prop) {
-    return getWhatsAppClient()[prop as keyof WhatsAppClient];
-  }
-});
 
 export const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || '';

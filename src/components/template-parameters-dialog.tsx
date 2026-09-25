@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import type { Template, TemplateParameterInfo } from '@/types/whatsapp';
 import { formatParametersForTemplate } from '@/lib/template-parser';
+import { apiPath } from '@/lib/api-path';
 
 type Props = {
   open: boolean;
@@ -64,7 +65,7 @@ export function TemplateParametersDialog({
     try {
       const formattedParameters = formatParametersForTemplate(parameterInfo, parameterValues);
 
-      const response = await fetch('/api/templates/send', {
+      const response = await fetch(apiPath('/api/templates/send'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
