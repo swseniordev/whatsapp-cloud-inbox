@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient, PHONE_NUMBER_ID } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient, PHONE_NUMBER_ID } from '@/lib/whatsapp-client';
 
 export async function GET(
   request: Request,
@@ -7,6 +7,8 @@ export async function GET(
 ) {
   const { mediaId } = await params;
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     // Get metadata for mime type
     const metadata = await whatsappClient.media.get({
       mediaId,
@@ -37,7 +39,7 @@ export async function GET(
         details: error instanceof Error ? error.message : 'Unknown error',
         mediaId
       },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

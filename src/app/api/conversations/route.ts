@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient } from '@/lib/whatsapp-client';
 
 // Previous Kapso conversation mapping kept for reference.
 //
@@ -29,6 +29,8 @@ import { whatsappClient } from '@/lib/whatsapp-client';
 
 export async function GET(request: Request) {
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const { searchParams } = new URL(request.url);
     const parsedLimit = Number.parseInt(searchParams.get('limit') ?? '', 10);
     const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 50;
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
     console.error('Error fetching conversations:', error);
     return NextResponse.json(
       { error: 'Failed to fetch conversations' },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

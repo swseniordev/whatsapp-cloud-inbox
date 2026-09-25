@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { apiPath } from '@/lib/api-path';
 
 type Message = {
   id: string;
@@ -112,7 +113,7 @@ export function MessageView({ conversationId, phoneNumber, contactName, onTempla
     if (!conversationId) return;
 
     try {
-      const response = await fetch(`/api/messages/${conversationId}`);
+      const response = await fetch(apiPath(`/api/messages/${conversationId}`));
       const data = await response.json();
 
       // Separate reactions from regular messages
@@ -236,7 +237,7 @@ export function MessageView({ conversationId, phoneNumber, contactName, onTempla
         formData.append('file', selectedFile);
       }
 
-      await fetch('/api/messages/send', {
+      await fetch(apiPath('/api/messages/send'), {
         method: 'POST',
         body: formData
       });

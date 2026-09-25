@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { apiPath } from '@/lib/api-path';
 
 type Button = {
   id: string;
@@ -96,7 +97,7 @@ export function InteractiveMessageDialog({
     setError(null);
 
     try {
-      const response = await fetch('/api/messages/interactive', {
+      const response = await fetch(apiPath('/api/messages/interactive'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

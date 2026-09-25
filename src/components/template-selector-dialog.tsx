@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import type { Template, TemplateParameterInfo } from '@/types/whatsapp';
 import { getTemplateParameters } from '@/lib/template-parser';
 import { TemplateParametersDialog } from './template-parameters-dialog';
+import { apiPath } from '@/lib/api-path';
 
 type Props = {
   open: boolean;
@@ -45,7 +46,7 @@ export function TemplateSelectorDialog({ open, onOpenChange, phoneNumber, onTemp
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/templates');
+      const response = await fetch(apiPath('/api/templates'));
       const data = await response.json();
 
       if (!response.ok) {
@@ -84,7 +85,7 @@ export function TemplateSelectorDialog({ open, onOpenChange, phoneNumber, onTemp
     setSending(template.id);
     setError(null);
     try {
-      const response = await fetch('/api/templates/send', {
+      const response = await fetch(apiPath('/api/templates/send'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

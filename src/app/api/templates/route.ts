@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient } from '@/lib/whatsapp-client';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const wabaId = process.env.WABA_ID;
 
     if (!wabaId) {
@@ -25,7 +27,7 @@ export async function GET() {
     console.error('Error fetching templates:', error);
     return NextResponse.json(
       { error: 'Failed to fetch templates' },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

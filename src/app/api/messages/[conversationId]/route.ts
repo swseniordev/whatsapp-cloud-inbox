@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient } from '@/lib/whatsapp-client';
 
 // Previous Kapso message mapping kept for reference while the active client
-// reads from http://localhost:3000/api/v1/evolution-api/messages/:conversationId.
+// reads from the gateway's /evolution-api/messages/:conversationId (EVOLUTION_API_URL).
 //
 // import {
 //   buildKapsoFields,
@@ -19,6 +19,8 @@ export async function GET(
   const { conversationId } = await params;
 
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const { searchParams } = new URL(request.url);
     const parsedLimit = Number.parseInt(searchParams.get('limit') ?? '', 10);
     const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 50;
@@ -36,7 +38,7 @@ export async function GET(
     console.error('Error fetching messages:', error);
     return NextResponse.json(
       { error: 'Failed to fetch messages', conversationId },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

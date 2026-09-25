@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient } from '@/lib/whatsapp-client';
 import type { TemplateParameterInfo } from '@/types/whatsapp';
 
 // Previous Kapso template helper kept for reference.
@@ -18,6 +18,8 @@ type TemplatePayload = {
 
 export async function POST(request: Request) {
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const body = await request.json();
     const { to, templateName, languageCode, parameters, parameterInfo } = body;
 
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
     console.error('Error sending template:', error);
     return NextResponse.json(
       { error: 'Failed to send template message' },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }

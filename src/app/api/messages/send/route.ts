@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { whatsappClient } from '@/lib/whatsapp-client';
+import { errorStatus, getWhatsAppClient } from '@/lib/whatsapp-client';
 
 // Previous media send flow used PHONE_NUMBER_ID and Kapso media upload methods.
 // Evolution text sending is active now; media support can be wired here when the
@@ -9,6 +9,8 @@ import { whatsappClient } from '@/lib/whatsapp-client';
 
 export async function POST(request: Request) {
   try {
+    const whatsappClient = await getWhatsAppClient(request);
+
     const formData = await request.formData();
     const to = formData.get('to') as string;
     const body = formData.get('body') as string;
@@ -45,7 +47,7 @@ export async function POST(request: Request) {
     console.error('Error sending message:', error);
     return NextResponse.json(
       { error: 'Failed to send message' },
-      { status: 500 }
+      { status: errorStatus(error) }
     );
   }
 }
