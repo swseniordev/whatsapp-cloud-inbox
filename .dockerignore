@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.github
+.idea
+.claude
+.env*
+!.env.example
+Dockerfile
+README.md
+assets
